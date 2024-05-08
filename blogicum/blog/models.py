@@ -104,7 +104,7 @@ class Post(BaseModel):
     )
 
     image = models.ImageField('Изображения',
-                              upload_to='posts_images',
+                              upload_to='uploads_posts/%Y/%m/%d/',
                               blank=True)
 
     class Meta:

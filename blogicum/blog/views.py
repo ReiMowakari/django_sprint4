@@ -2,43 +2,30 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.shortcuts import render, get_object_or_404, redirect
-from django.utils import timezone
+from django.views.generic import ListView, DetailView
 
 from .forms import UserForm, PostForm, CommentForm
 from .models import Post, Category, User, Comment
+from .utils import get_joined_models, get_filtered_posts
 
-# Константа для отображения 5 записей на главной странице.
+
+# Константа для отображения 10 записей на главной странице.
 POSTS_PER_PAGE = 10
 
 
-# Функция объединения моделей.
-def get_joined_models():
-    return Post.objects.select_related(
-        'location',
-        'author',
-        'category'
-    )
-
-
-# Функция фильтрации постов.
-def get_filtered_posts(posts, **kwargs):
-    return posts.filter(
-        pub_date__lte=timezone.now(),
-        is_published=True,
-        category__is_published=True,
-        **kwargs
-    )
-
-
-def index(request):
-    """функция отображения главной страницы проекта."""
+class BlogHome(ListView):
+    """Отображение главной страницы"""
     template_name = 'blog/index.html'
-    posts = get_filtered_posts(get_joined_models()).order_by(
-        '-pub_date')[:POSTS_PER_PAGE]
-    context = {
-        'posts': posts,
-    }
-    return render(request, template_name, context)
+    context_object_name = 'page_obj'
+
+    def get_queryset(self):
+        return get_filtered_posts(get_joined_models()).order_by(
+            '-pub_date')[:POSTS_PER_PAGE]
+
+
+class PostDetail(DetailView):
+    """"""
+    pass
 
 
 def post_detail(request, id):
@@ -54,22 +41,22 @@ def post_detail(request, id):
     return render(request, template_name, context)
 
 
-def category_posts(request, category_slug):
-    """функция отображения страницы категории."""
+class CategoryPosts(ListView):
+    """Отображение списка постов по категории"""
     template_name = 'blog/category.html'
-    # Определяем категорию по слагу. Если категории нет и неопубликована - 404.
-    category = get_object_or_404(
-        Category,
-        slug=category_slug,
-        is_published=True
-    )
-    # Получение списка постов по отфильтрованной категории.
-    posts = get_filtered_posts(get_joined_models(), category_id=category)
-    context = {
-        'category': category,
-        'posts': posts,
-    }
-    return render(request, template_name, context)
+    context_object_name = 'page_obj'
+
+    def get_queryset(self):
+        """Определяем категорию по слагу и возвращаем список постов"""
+        return get_filtered_posts(get_joined_models(),
+                                  category__slug=self.kwargs['category_slug'])
+
+    def get_context_data(self, **kwargs):
+        """добавление модели категории в контекст шаблона"""
+        context = super().get_context_data(**kwargs)
+        context['category'] = get_object_or_404(Category,
+                                                slug=self.kwargs['category_slug'])
+        return context
 
 
 def profile(request, username):
@@ -96,6 +83,7 @@ def edit_profile(request):
 
 @login_required
 def create_post(request):
+    """Создание поста через форму"""
     form = PostForm(
         request.POST or None,
         files=request.FILES or None)
