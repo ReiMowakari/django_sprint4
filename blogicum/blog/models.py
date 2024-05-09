@@ -34,8 +34,8 @@ class Category(BaseModel):
         unique=True,
         verbose_name='Идентификатор',
         help_text=(
-            'Идентификатор страницы для URL;'
-            ' разрешены символы латиницы, цифры, дефис и подчёркивание.'
+            'Идентификатор страницы для URL; '
+            'разрешены символы латиницы, цифры, дефис и подчёркивание.'
         )
     )
 
@@ -103,7 +103,7 @@ class Post(BaseModel):
         related_name='posts',
     )
 
-    image = models.ImageField('Изображения',
+    image = models.ImageField('Изображениe',
                               upload_to='uploads_posts/%Y/%m/%d/',
                               blank=True)
 
@@ -123,8 +123,9 @@ class Comment(models.Model):
     )
     post = models.ForeignKey(
         Post,
+        verbose_name='Публикация',
         on_delete=models.CASCADE,
-        related_name='comment',
+        related_name='comments',
     )
     created_at = models.DateTimeField(
         'Дата и время создания',
@@ -133,6 +134,9 @@ class Comment(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='comments',
         verbose_name='Автор'
     )
+
+    class Meta:
+        verbose_name = 'комментарий'
+        verbose_name_plural = 'комментарии'
