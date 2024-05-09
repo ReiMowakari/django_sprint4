@@ -49,7 +49,7 @@ class CategoryPosts(ListView):
         """Определяем категорию по слагу и возвращаем список постов."""
         posts = get_filtered_posts(get_joined_models(),
                                    category__slug=self.kwargs['category_slug'])
-        posts.order_by('-pub_date').annotate(comment_count=Count('comment'))
+        posts = posts.order_by('-pub_date').annotate(comment_count=Count('comment'))
         return posts
 
     def get_context_data(self, **kwargs):
