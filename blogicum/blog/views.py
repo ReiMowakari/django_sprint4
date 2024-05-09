@@ -48,7 +48,7 @@ class CategoryPosts(ListView):
     def get_queryset(self):
         """Определяем категорию по слагу и возвращаем список постов."""
         posts = get_filtered_posts(get_joined_models(),
-                                   category__slug=self.kwargs['category_slug'],)
+                                   category__slug=self.kwargs['category_slug'])
         posts.order_by('-pub_date').annotate(comment_count=Count('comment'))
         return posts
 
