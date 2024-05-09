@@ -1,58 +1,60 @@
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import ListView, DetailView
+from django.views.generic import ListView, DetailView, CreateView
+from django.urls import reverse
 
 from .forms import UserForm, PostForm, CommentForm
 from .models import Post, Category, User, Comment
-from .utils import get_joined_models, get_filtered_posts
-
-
-# Константа для отображения 10 записей на главной странице.
-POSTS_PER_PAGE = 10
+from .utils import get_joined_models, get_filtered_posts, get_paginator
 
 
 class BlogHome(ListView):
-    """Отображение главной страницы"""
+    """Отображение главной страницы."""
     template_name = 'blog/index.html'
     context_object_name = 'page_obj'
+    paginate_by = 10
 
     def get_queryset(self):
         return get_filtered_posts(get_joined_models()).order_by(
-            '-pub_date')[:POSTS_PER_PAGE]
+            '-pub_date').annotate(
+        comment_count=Count('comment')
+    )
 
 
 class PostDetail(DetailView):
-    """"""
-    pass
-
-
-def post_detail(request, id):
-    """функция отображения страницы с отдельной публикацией."""
+    """Отображение подробного поста."""
+    model = Post
     template_name = 'blog/detail.html'
-    post = get_object_or_404(
-        get_filtered_posts(get_joined_models()),
-        pk=id,
-    )
-    context = {
-        'post': post
-    }
-    return render(request, template_name, context)
+    pk_url_kwarg = 'id'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = CommentForm()
+        context['comments'] = (
+            self.object.comment.select_related('author')
+        )
+        return context
 
 
 class CategoryPosts(ListView):
-    """Отображение списка постов по категории"""
+    """Отображение списка постов по категории."""
     template_name = 'blog/category.html'
     context_object_name = 'page_obj'
+    allow_empty = False
+    paginate_by = 10
 
     def get_queryset(self):
-        """Определяем категорию по слагу и возвращаем список постов"""
+        """Определяем категорию по слагу и возвращаем список постов."""
         return get_filtered_posts(get_joined_models(),
-                                  category__slug=self.kwargs['category_slug'])
+                                  category__slug=self.kwargs['category_slug'],
+                                  ).order_by('-pub_date').annotate(
+                                  comment_count=Count('comment')
+    )
 
     def get_context_data(self, **kwargs):
-        """добавление модели категории в контекст шаблона"""
+        """Добавление модели категории в контекст шаблона."""
         context = super().get_context_data(**kwargs)
         context['category'] = get_object_or_404(Category,
                                                 slug=self.kwargs['category_slug'])
@@ -81,19 +83,19 @@ def edit_profile(request):
     return render(request, 'blog/user.html', context)
 
 
-@login_required
-def create_post(request):
-    """Создание поста через форму"""
-    form = PostForm(
-        request.POST or None,
-        files=request.FILES or None)
-    context = {'form': form}
-    if form.is_valid():
-        instance = form.save(commit=False)
-        instance.author = request.user
-        instance.save()
-        return redirect('blog:profile', username=request.user)
-    return render(request, 'blog/create.html', context)
+class CreatePost(LoginRequiredMixin, CreateView):
+    form_class = PostForm
+    template_name = 'blog/create.html'
+
+    def form_valid(self, form):
+        """Метод для переопределения формы, так как автор не указывается."""
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        """Метод для редиректа на страницу профиля."""
+        return reverse('blog:profile', kwargs={
+            'username': self.request.user.username})
 
 
 @login_required
@@ -127,22 +129,15 @@ def delete_post(request, post_id):
 
 
 @login_required
-def add_comment(request, post_id, comment_id=None):
+def add_comment(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    if request.method == 'POST':
-        if comment_id:
-            form = CommentForm(
-                instance=Comment.objects.get(id=comment_id),
-                data=request.POST
-            )
-        else:
-            form = CommentForm(data=request.POST)
+    form = CommentForm(request.POST)
     if form.is_valid():
         comment = form.save(commit=False)
         comment.author = request.user
         comment.post = post
         comment.save()
-    return redirect('blog:post_detail', post_id=post_id)
+    return redirect('blog:post_detail', id=post_id)
 
 
 def edit_comment(request, post_id, comment_id):
@@ -174,16 +169,6 @@ def delete_comment(request, post_id, comment_id):
         return redirect('blog:post_detail', post_id)
     return render(request, 'blog/comment.html')
 
-
-def get_paginator(posts, request):
-    paginator = Paginator(posts, POSTS_PER_PAGE)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    return {
-        'paginator': paginator,
-        'page_number': page_number,
-        'page_obj': page_obj,
-    }
 
 
 

@@ -21,7 +21,7 @@ urlpatterns = [
             success_url=reverse_lazy('blog:index')
         ),
         name='registration'
-    )
+    ),
 ]
 
 
