@@ -117,6 +117,7 @@ class Post(BaseModel):
 
 class Comment(models.Model):
     """Модель для комментариев."""
+
     text = models.TextField(
         'Оставить комментарий'
     )

@@ -1,7 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.views.generic import (
+    ListView, DetailView, CreateView, UpdateView, DeleteView)
 from django.urls import reverse
 
 from .forms import UserForm, PostForm, CommentForm
@@ -11,19 +12,19 @@ from .utils import get_joined_models, get_filtered_posts, get_paginator
 
 class BlogHome(ListView):
     """Отображение главной страницы."""
+
     template_name = 'blog/index.html'
     context_object_name = 'page_obj'
     paginate_by = 10
 
     def get_queryset(self):
         return get_filtered_posts(get_joined_models()).order_by(
-            '-pub_date').annotate(
-        comment_count=Count('comment')
-    )
+            '-pub_date').annotate(comment_count=Count('comment'))
 
 
 class PostDetail(DetailView):
     """Отображение подробного поста."""
+
     model = Post
     template_name = 'blog/detail.html'
     pk_url_kwarg = 'id'
@@ -39,23 +40,26 @@ class PostDetail(DetailView):
 
 class CategoryPosts(ListView):
     """Отображение списка постов по категории."""
+
     template_name = 'blog/category.html'
     context_object_name = 'page_obj'
     paginate_by = 10
 
     def get_queryset(self):
         """Определяем категорию по слагу и возвращаем список постов."""
+
         return get_filtered_posts(get_joined_models(),
                                   category__slug=self.kwargs['category_slug'],
                                   ).order_by('-pub_date').annotate(
-                                  comment_count=Count('comment')
-    )
+                                  comment_count=Count('comment'))
 
     def get_context_data(self, **kwargs):
         """Добавление модели категории в контекст шаблона."""
+
         context = super().get_context_data(**kwargs)
-        context['category'] = get_object_or_404(Category,
-                                                slug=self.kwargs['category_slug'])
+        context['category'] = get_object_or_404(
+            Category,
+            slug=self.kwargs['category_slug'])
         return context
 
 
