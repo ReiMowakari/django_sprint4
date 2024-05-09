@@ -47,15 +47,13 @@ class CategoryPosts(ListView):
 
     def get_queryset(self):
         """Определяем категорию по слагу и возвращаем список постов."""
-
-        return get_filtered_posts(get_joined_models(),
-                                  category__slug=self.kwargs['category_slug'],
-                                  ).order_by('-pub_date').annotate(
-                                  comment_count=Count('comment'))
+        posts = get_filtered_posts(get_joined_models(),
+                                   category__slug=self.kwargs['category_slug'],)
+        posts.order_by('-pub_date').annotate(comment_count=Count('comment'))
+        return posts
 
     def get_context_data(self, **kwargs):
         """Добавление модели категории в контекст шаблона."""
-
         context = super().get_context_data(**kwargs)
         context['category'] = get_object_or_404(
             Category,
