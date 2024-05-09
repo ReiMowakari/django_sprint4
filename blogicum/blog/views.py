@@ -1,8 +1,7 @@
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import ListView, DetailView, CreateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse
 
 from .forms import UserForm, PostForm, CommentForm
@@ -42,7 +41,6 @@ class CategoryPosts(ListView):
     """Отображение списка постов по категории."""
     template_name = 'blog/category.html'
     context_object_name = 'page_obj'
-    allow_empty = False
     paginate_by = 10
 
     def get_queryset(self):
@@ -83,7 +81,7 @@ def edit_profile(request):
     return render(request, 'blog/user.html', context)
 
 
-class CreatePost(LoginRequiredMixin, CreateView):
+class CreatePost(CreateView):
     form_class = PostForm
     template_name = 'blog/create.html'
 
@@ -98,34 +96,31 @@ class CreatePost(LoginRequiredMixin, CreateView):
             'username': self.request.user.username})
 
 
-@login_required
-def edit_post(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    if request.user != post.author:
-        return redirect('blog:post_detail', post_id)
-    form = PostForm(
-        request.POST or None,
-        files=request.FILES or None,
-        instance=post)
-    if form.is_valid():
-        form.save()
-        return redirect('blog:post_detail', post_id)
-    context = {'form': form, 'post': post, 'is_edit': True}
-    return render(request, 'blog/create.html', context)
+class EditPost(UpdateView):
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/create.html'
+
+    def get_success_url(self):
+        return redirect('blog:post_detail', self.object.id)
+
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+    def get_object(self, queryset=None):
+        post_id = self.kwargs.get('post_id')
+        return get_object_or_404(Post, id=post_id)
 
 
-@login_required
-def delete_post(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
-    instance = get_object_or_404(Post, id=post_id)
-    form = PostForm(instance=instance)
-    if request.user != post.author:
-        return redirect('blog:post_detail', post_id)
-    context = {'form': form}
-    if request.method == 'POST':
-        instance.delete()
-        return redirect('blog:index')
-    return render(request, 'blog/create.html', context)
+class DeletePost(DeleteView):
+    template_name = 'blog/create.html'
+    model = Post
+    success_url = '/'
+
+    def get_object(self, queryset=None):
+        post_id = self.kwargs.get('post_id')
+        return get_object_or_404(Post, id=post_id)
 
 
 @login_required
@@ -168,13 +163,3 @@ def delete_comment(request, post_id, comment_id):
         instance.delete()
         return redirect('blog:post_detail', post_id)
     return render(request, 'blog/comment.html')
-
-
-
-
-
-
-
-
-
-
