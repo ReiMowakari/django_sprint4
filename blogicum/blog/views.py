@@ -80,9 +80,6 @@ class Profile(ListOfPostMixin):
         )
         return context
 
-    def get_success_url(self):
-        return reverse('blog:profile', kwargs={'username': self.kwargs['username']})
-
 
 class EditProfile(LoginRequiredMixin, UpdateView):
     """Редактирование профиля."""
@@ -94,9 +91,7 @@ class EditProfile(LoginRequiredMixin, UpdateView):
         return self.request.user
 
     def get_success_url(self):
-        return reverse(
-            'blog:profile', kwargs={
-                'username': self.request.user.username})
+        return reverse('blog:profile', kwargs={'username': self.request.user.username})
 
 
 class CreatePost(LoginRequiredMixin, CreateView):
