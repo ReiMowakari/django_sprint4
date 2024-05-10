@@ -28,6 +28,4 @@ class UserForm(forms.ModelForm):
 
     class Meta:
         model = User
-        exclude = ('groups', 'user_permissions', 'is_staff',
-                             'is_active', 'is_superuser', 'date_joined',
-                             'last_login', 'password')
+        fields = ['first_name', 'last_name', 'email', 'username']

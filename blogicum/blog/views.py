@@ -1,34 +1,43 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView)
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
 
 from .forms import UserForm, PostForm, CommentForm
 from .models import Post, Category, User, Comment
-from .utils import get_joined_models, get_filtered_posts
 
 # Константа для хранения кол-ва страниц пагинации
 PAGINATOR_QUANTITY = 10
 
 # Константа для фильрации постов
-P_FILTER = '-pub_date'
+FROM_NEW_TO_OLD = '-pub_date'
 
 
-class BlogHome(ListView):
-    """Отображение главной страницы."""
-
+class ListOfPostMixin(ListView):
+    """Микс для формирования списка постов."""
     model = Post
     template_name = 'blog/index.html'
-    context_object_name = 'page_obj'
     paginate_by = PAGINATOR_QUANTITY
+
+    queryset = Post.objects.select_related(
+        'category', 'location', 'author'
+    ).annotate(comment_count=Count('comments')
+               ).order_by(FROM_NEW_TO_OLD)
+
+
+class BlogHome(ListOfPostMixin):
+    """Отображение главной страницы."""
 
     def get_queryset(self):
         """Получение списка постов с кол-во комментариев."""
-        return get_filtered_posts(get_joined_models()).order_by(
-            P_FILTER).annotate(comment_count=Count('comments'))
+        return self.queryset.filter(
+            pub_date__lte=timezone.now(),
+            is_published=True,
+            category__is_published=True,)
 
 
 class PostDetail(DetailView):
@@ -48,20 +57,17 @@ class PostDetail(DetailView):
         return context
 
 
-class CategoryPosts(ListView):
+class CategoryPosts(ListOfPostMixin):
     """Отображение списка постов по категории."""
 
     template_name = 'blog/category.html'
-    context_object_name = 'page_obj'
-    paginate_by = PAGINATOR_QUANTITY
 
     def get_queryset(self):
         """Определяем категорию по слагу и возвращаем список постов."""
-        posts = get_filtered_posts(get_joined_models(),
-                                   category__slug=self.kwargs['category_slug'])
-        posts = posts.order_by(
-            P_FILTER).annotate(comment_count=Count('comments'))
-        return posts
+        return self.queryset.filter(
+            category__slug=self.kwargs['category_slug'],
+            is_published=True
+        )
 
     def get_context_data(self, **kwargs):
         """Добавление модели категории в контекст шаблона."""
@@ -73,19 +79,15 @@ class CategoryPosts(ListView):
         return context
 
 
-class Profile(ListView):
+class Profile(ListOfPostMixin):
     """Отображение списка постов в профиле."""
 
     template_name = 'blog/profile.html'
-    paginate_by = PAGINATOR_QUANTITY
 
     def get_queryset(self):
         """Получение списка постов."""
-        posts = get_filtered_posts(get_joined_models(),
-                                   author__username=self.kwargs['username'])
-        posts = posts.order_by(
-            P_FILTER).annotate(comment_count=Count('comments'))
-        return posts
+        return self.queryset.filter(
+            author__username=self.kwargs['username'])
 
     def get_context_data(self, **kwargs):
         """Добавление объекта профиля."""
@@ -102,12 +104,22 @@ class EditProfile(LoginRequiredMixin, UpdateView):
     form_class = UserForm
     template_name = 'blog/user.html'
 
+    def get_object(self, queryset=None):
+        return self.request.user
+
     def get_success_url(self):
         return reverse(
-            'blog:profile', kwargs={
-                'profile': self.kwargs['profile']
-            }
+            'profile', args=[self.kwargs['username']]
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['profile'] = self.request.user
+        return context
+
+    def form_valid(self, form):
+        form.instance.save()
+        return super().form_valid(form)
 
 
 class CreatePost(LoginRequiredMixin, CreateView):
