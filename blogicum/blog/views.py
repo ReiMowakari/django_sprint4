@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView)
@@ -9,24 +9,7 @@ from django.utils import timezone
 
 from .forms import UserForm, PostForm, CommentForm
 from .models import Post, Category, User, Comment
-
-# Константа для хранения кол-ва страниц пагинации
-PAGINATOR_QUANTITY = 10
-
-# Константа для фильрации постов
-FROM_NEW_TO_OLD = '-pub_date'
-
-
-class ListOfPostMixin(ListView):
-    """Микс для формирования списка постов."""
-    model = Post
-    template_name = 'blog/index.html'
-    paginate_by = PAGINATOR_QUANTITY
-
-    queryset = Post.objects.select_related(
-        'category', 'location', 'author'
-    ).annotate(comment_count=Count('comments')
-               ).order_by(FROM_NEW_TO_OLD)
+from .mixins import ListOfPostMixin
 
 
 class BlogHome(ListOfPostMixin):
@@ -37,7 +20,7 @@ class BlogHome(ListOfPostMixin):
         return self.queryset.filter(
             pub_date__lte=timezone.now(),
             is_published=True,
-            category__is_published=True,)
+            category__is_published=True)
 
 
 class PostDetail(DetailView):
@@ -62,13 +45,6 @@ class CategoryPosts(ListOfPostMixin):
 
     template_name = 'blog/category.html'
 
-    def get_queryset(self):
-        """Определяем категорию по слагу и возвращаем список постов."""
-        return self.queryset.filter(
-            category__slug=self.kwargs['category_slug'],
-            is_published=True
-        )
-
     def get_context_data(self, **kwargs):
         """Добавление модели категории в контекст шаблона."""
         context = super().get_context_data(**kwargs)
@@ -77,6 +53,13 @@ class CategoryPosts(ListOfPostMixin):
             slug=self.kwargs['category_slug'],
             is_published=True)
         return context
+
+    def get_queryset(self):
+        """Определяем категорию по слагу и возвращаем список постов."""
+        return (super().queryset.filter(
+            category__slug=self.kwargs['category_slug'],
+            is_published=True
+        ))
 
 
 class Profile(ListOfPostMixin):
@@ -87,7 +70,7 @@ class Profile(ListOfPostMixin):
     def get_queryset(self):
         """Получение списка постов."""
         return self.queryset.filter(
-            author__username=self.kwargs['username'])
+                                   author__username=self.kwargs['username'])
 
     def get_context_data(self, **kwargs):
         """Добавление объекта профиля."""
@@ -96,6 +79,9 @@ class Profile(ListOfPostMixin):
             get_user_model(), username=self.kwargs['username']
         )
         return context
+
+    def get_success_url(self):
+        return reverse('blog:profile', kwargs={'username': self.kwargs['username']})
 
 
 class EditProfile(LoginRequiredMixin, UpdateView):
@@ -109,17 +95,8 @@ class EditProfile(LoginRequiredMixin, UpdateView):
 
     def get_success_url(self):
         return reverse(
-            'profile', args=[self.kwargs['username']]
-        )
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['profile'] = self.request.user
-        return context
-
-    def form_valid(self, form):
-        form.instance.save()
-        return super().form_valid(form)
+            'blog:profile', kwargs={
+                'username': self.request.user.username})
 
 
 class CreatePost(LoginRequiredMixin, CreateView):

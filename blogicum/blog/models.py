@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 
 
 User = get_user_model()
@@ -83,7 +84,6 @@ class Post(BaseModel):
         User,
         on_delete=models.CASCADE,
         verbose_name='Автор публикации',
-        related_name='posts',
     )
 
     location = models.ForeignKey(
@@ -92,7 +92,6 @@ class Post(BaseModel):
         null=True,
         blank=True,
         verbose_name='Местоположение',
-        related_name='posts',
     )
 
     category = models.ForeignKey(
@@ -100,7 +99,6 @@ class Post(BaseModel):
         on_delete=models.SET_NULL,
         null=True,
         verbose_name='Категория',
-        related_name='posts',
     )
 
     image = models.ImageField('Изображениe',
@@ -110,9 +108,15 @@ class Post(BaseModel):
     class Meta:
         verbose_name = 'публикация'
         verbose_name_plural = 'Публикации'
+        ordering = ('-pub_date',)
+        default_related_name = 'posts'
 
     def __str__(self):
         return self.title
+
+    def get_absolute_url(self):
+        return reverse('blog:post_detail',
+                       kwargs={'pk': self.pk})
 
 
 class Comment(models.Model):
@@ -125,7 +129,6 @@ class Comment(models.Model):
         Post,
         verbose_name='Публикация',
         on_delete=models.CASCADE,
-        related_name='comments',
     )
     created_at = models.DateTimeField(
         'Дата и время создания',
@@ -140,3 +143,8 @@ class Comment(models.Model):
     class Meta:
         verbose_name = 'комментарий'
         verbose_name_plural = 'комментарии'
+        ordering = ('created_at',)
+        default_related_name = 'comments'
+
+    def __str__(self):
+        return self.text
