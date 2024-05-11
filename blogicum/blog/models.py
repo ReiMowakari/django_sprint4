@@ -102,7 +102,7 @@ class Post(BaseModel):
     )
 
     image = models.ImageField('Изображениe',
-                              upload_to='uploads_posts/%Y/%m/%d/',
+                              upload_to='media/%Y/%m/%d/',
                               blank=True)
 
     class Meta:
@@ -116,7 +116,7 @@ class Post(BaseModel):
 
     def get_absolute_url(self):
         return reverse('blog:post_detail',
-                       kwargs={'pk': self.pk})
+                       args=(self.pk,))
 
 
 class Comment(models.Model):

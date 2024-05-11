@@ -9,7 +9,7 @@ app_name = 'blog'
 
 urlpatterns = [
     path('', views.BlogHome.as_view(), name='index'),
-    path('posts/<int:id>/', views.PostDetail.as_view(), name='post_detail'),
+    path('posts/<int:post_id>/', views.PostDetail.as_view(), name='post_detail'),
     path(
         '<slug:category_slug>/',
         views.CategoryPosts.as_view(),
