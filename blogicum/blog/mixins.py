@@ -40,7 +40,7 @@ class EditDeletePost(LoginRequiredMixin):
             Post, pk=kwargs['post_id']
         )
         if instance.author != request.user:
-            return redirect('blog:post_detail',instance.pk)
+            return redirect('blog:post_detail', instance.pk)
         return super().dispatch(request, *args, **kwargs)
 
 

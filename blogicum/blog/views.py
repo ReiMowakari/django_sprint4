@@ -32,10 +32,11 @@ class PostDetail(DetailView):
 
     def dispatch(self, request, *args, **kwargs):
         obj = get_object_or_404(Post, pk=kwargs['post_id'])
-        if ((not obj.is_published or not obj.category.is_published
-             or obj.pub_date > timezone.now())
+        if ((
+                not obj.is_published or not obj.category.is_published
+                or obj.pub_date > timezone.now())
                 and obj.author != request.user):
-                    raise Http404('Страница не найдена')
+            raise Http404('Страница не найдена')
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -82,7 +83,7 @@ class Profile(ListOfPostMixin):
         или чужой профиль.
         """
         posts = super().queryset.filter(
-                author__username=self.kwargs['username'])
+            author__username=self.kwargs['username'])
         if self.request.user.username == self.kwargs['username']:
             return posts
         return posts.filter(is_published=True)
@@ -98,6 +99,7 @@ class Profile(ListOfPostMixin):
 
 class EditProfile(LoginRequiredMixin, UpdateView):
     """Редактирование профиля."""
+
     model = User
     form_class = UserForm
     template_name = 'blog/user.html'
@@ -112,6 +114,7 @@ class EditProfile(LoginRequiredMixin, UpdateView):
 
 class CreatePost(LoginRequiredMixin, CreateView):
     """Создание поста."""
+
     form_class = PostForm
     template_name = 'blog/create.html'
 
