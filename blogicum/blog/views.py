@@ -1,10 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.views.generic import (
-    DetailView, CreateView, UpdateView, DeleteView, ListView)
+    DetailView, CreateView, UpdateView, DeleteView)
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 
@@ -17,8 +16,8 @@ class BlogHome(ListOfPostMixin):
     """Отображение главной страницы."""
 
     def get_queryset(self):
-        """Получение списка постов с кол-во комментариев."""
-        return self.queryset.filter(
+        """Получение списка постов с фильтрацией."""
+        return super().queryset.filter(
             pub_date__lte=timezone.now(),
             is_published=True,
             category__is_published=True)
@@ -33,12 +32,10 @@ class PostDetail(DetailView):
 
     def dispatch(self, request, *args, **kwargs):
         obj = get_object_or_404(Post, pk=kwargs['post_id'])
-        if (
-                (not obj.is_published or not obj.category.is_published
-                 or obj.pub_date > timezone.now())
-                and obj.author != request.user
-        ):
-            raise Http404('Страница не найдена')
+        if ((not obj.is_published or not obj.category.is_published
+             or obj.pub_date > timezone.now())
+                and obj.author != request.user):
+                    raise Http404('Страница не найдена')
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -46,8 +43,7 @@ class PostDetail(DetailView):
         context = super().get_context_data(**kwargs)
         context['form'] = CommentForm()
         context['comments'] = (
-            self.object.comments.select_related('author')
-        )
+            self.object.comments.select_related('author'))
         return context
 
 
@@ -70,8 +66,7 @@ class CategoryPosts(ListOfPostMixin):
         return super().queryset.filter(
             category__slug=self.kwargs['category_slug'],
             is_published=True,
-            pub_date__lte=timezone.now()
-        )
+            pub_date__lte=timezone.now())
 
 
 class Profile(ListOfPostMixin):
@@ -80,15 +75,20 @@ class Profile(ListOfPostMixin):
     template_name = 'blog/profile.html'
 
     def get_queryset(self):
-        """Получение списка постов."""
-        posts = self.queryset.filter(
+        """
+        Получение списка всех постов
+        или только опубликованных,
+        в зависимости от перехода в свой
+        или чужой профиль.
+        """
+        posts = super().queryset.filter(
                 author__username=self.kwargs['username'])
         if self.request.user.username == self.kwargs['username']:
             return posts
         return posts.filter(is_published=True)
 
     def get_context_data(self, **kwargs):
-        """Добавление объекта профиля."""
+        """Добавление объекта профиля в контекст."""
         context = super().get_context_data(**kwargs)
         context['profile'] = get_object_or_404(
             get_user_model(), username=self.kwargs['username']
@@ -106,7 +106,8 @@ class EditProfile(LoginRequiredMixin, UpdateView):
         return self.request.user
 
     def get_success_url(self):
-        return reverse('blog:profile', kwargs={'username': self.request.user.username})
+        return reverse('blog:profile', kwargs={
+            'username': self.request.user.username})
 
 
 class CreatePost(LoginRequiredMixin, CreateView):
@@ -115,7 +116,10 @@ class CreatePost(LoginRequiredMixin, CreateView):
     template_name = 'blog/create.html'
 
     def form_valid(self, form):
-        """Метод для переопределения формы, так как автор не указывается."""
+        """
+        Метод для переопределения формы,
+        так как автор не указывается.
+        """
         form.instance.author = self.request.user
         return super().form_valid(form)
 
@@ -127,11 +131,13 @@ class CreatePost(LoginRequiredMixin, CreateView):
 
 class EditPost(EditDeletePost, UpdateView):
     """Редактирование поста."""
+
     form_class = PostForm
 
 
 class DeletePost(EditDeletePost, DeleteView):
     """Удаление поста."""
+
     success_url = reverse_lazy('blog:index')
 
 
@@ -143,9 +149,11 @@ class AddComment(LoginRequiredMixin, CreateView):
     template_name = 'comment.html'
 
     def form_valid(self, form):
-        """Добавление в форму объектов автора и поста."""
+        """Добавление в форму объектов автора и существующего поста."""
         form.instance.author = self.request.user
-        form.instance.post_id = self.kwargs['post_id']
+        form.instance.post = get_object_or_404(
+            Post,
+            id=self.kwargs['post_id'])
         return super().form_valid(form)
 
     def get_success_url(self):
@@ -159,9 +167,11 @@ class AddComment(LoginRequiredMixin, CreateView):
 
 class EditComment(EditDeleteComment, UpdateView):
     """Редактирование комментария."""
+
     pass
 
 
 class DeleteComment(EditDeleteComment, DeleteView):
     """Удаление комментария."""
+
     pass

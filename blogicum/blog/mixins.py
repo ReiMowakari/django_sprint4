@@ -1,5 +1,4 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
 from django.db.models import Count
 from django.shortcuts import redirect, get_object_or_404
 from django.views.generic import ListView
@@ -8,7 +7,10 @@ from django.urls import reverse
 from .forms import CommentForm
 from .models import Post, Comment
 
+# Константа для пагинации.
 PAGINATOR_QUANTITY = 10
+
+# Константа для фильтрации.
 FROM_NEW_TO_OLD = '-pub_date'
 
 
@@ -33,7 +35,7 @@ class EditDeletePost(LoginRequiredMixin):
     template_name = 'blog/create.html'
 
     def dispatch(self, request, *args, **kwargs):
-        """Проверка на права для удаления чужих сущностей."""
+        """Проверка на права для удаления чужих постов."""
         instance = get_object_or_404(
             Post, pk=kwargs['post_id']
         )
@@ -43,18 +45,27 @@ class EditDeletePost(LoginRequiredMixin):
 
 
 class EditDeleteComment(LoginRequiredMixin):
+    """Микс для редактирования и удаления комментариев."""
+
     model = Comment
     form_class = CommentForm
     template_name = 'blog/comment.html'
     pk_url_kwarg = 'comment_id'
 
     def dispatch(self, request, *args, **kwargs):
-        """Проверка на права для удаления чужих сущностей."""
-        instance = get_object_or_404(
+        """
+        Проверка на права для удаления чужих комментариев.
+        Получение объектов комментария для проверки
+        и получение объекта поста для редиректа.
+        """
+        comment = get_object_or_404(
             Comment, pk=kwargs['comment_id']
         )
-        if instance.author != request.user:
-            raise PermissionDenied('Нет прав')
+        post = get_object_or_404(
+            Post, pk=kwargs['post_id']
+        )
+        if comment.author != request.user:
+            return redirect('blog:post_detail', post.pk)
         return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
