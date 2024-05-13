@@ -73,3 +73,19 @@ class EditDeleteComment(LoginRequiredMixin):
             'blog:post_detail', kwargs={
                 'post_id': self.kwargs['post_id']}
         )
+
+
+class RedirectMixin(LoginRequiredMixin):
+    @property
+    def success_url(self):
+        """
+        Определяем метод за счет декоратора, как атрибут редиректа.
+        Если потребуется по-умолчанию - значит редирект будет
+        идти на профиль. В противном случае - можно переопределить.
+        """
+        return reverse('blog:profile', kwargs={
+            'username': self.request.user.username
+        })
+
+    def get_success_url(self):
+        return self.success_url

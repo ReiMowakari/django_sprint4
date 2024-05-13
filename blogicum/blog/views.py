@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from .forms import UserForm, PostForm, CommentForm
 from .models import Post, Category, User, Comment
-from .mixins import ListOfPostMixin, EditDeletePost, EditDeleteComment
+from .mixins import ListOfPostMixin, EditDeletePost, EditDeleteComment, RedirectMixin
 
 
 class BlogHome(ListOfPostMixin):
@@ -97,7 +97,7 @@ class Profile(ListOfPostMixin):
         return context
 
 
-class EditProfile(LoginRequiredMixin, UpdateView):
+class EditProfile(RedirectMixin, UpdateView):
     """Редактирование профиля."""
 
     model = User
@@ -107,12 +107,8 @@ class EditProfile(LoginRequiredMixin, UpdateView):
     def get_object(self, queryset=None):
         return self.request.user
 
-    def get_success_url(self):
-        return reverse('blog:profile', kwargs={
-            'username': self.request.user.username})
 
-
-class CreatePost(LoginRequiredMixin, CreateView):
+class CreatePost(RedirectMixin, CreateView):
     """Создание поста."""
 
     form_class = PostForm
@@ -125,11 +121,6 @@ class CreatePost(LoginRequiredMixin, CreateView):
         """
         form.instance.author = self.request.user
         return super().form_valid(form)
-
-    def get_success_url(self):
-        """Метод для редиректа на страницу профиля."""
-        return reverse('blog:profile', kwargs={
-            'username': self.request.user.username})
 
 
 class EditPost(EditDeletePost, UpdateView):
@@ -144,7 +135,7 @@ class DeletePost(EditDeletePost, DeleteView):
     success_url = reverse_lazy('blog:index')
 
 
-class AddComment(LoginRequiredMixin, CreateView):
+class AddComment(RedirectMixin, CreateView):
     """Создание комментария."""
 
     model = Comment
@@ -160,6 +151,10 @@ class AddComment(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
     def get_success_url(self):
+        """
+        Переопределение атрибута редиректа
+        для миксина.
+        """
         return reverse(
             'blog:post_detail',
             kwargs={
